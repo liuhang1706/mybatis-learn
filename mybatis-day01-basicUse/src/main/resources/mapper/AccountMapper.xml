@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.liuhang.mybatis.dao.AccountMapper">
+
+    <!-- 根据用户id查询账户 -->
+    <select id="getAccountByUid" parameterType="int" resultType="com.liuhang.mybatis.entity.Account">
+        SELECT * FROM account WHERE uid = #{uid}
+    </select>
+
+
+<!--    ########################   一对一或者多对一   ####################################-->
+    <!-- 定义可以封装带有User的Account的 resultMap -->
+    <resultMap id="AccountWithUserMap" type="com.liuhang.mybatis.entity.Account">
+        <id property="id" column="aid"/>
+        <result property="uid" column="uid"/>
+        <result property="money" column="money"/>
+        <!-- 关联 User 对象
+            <association></association> 用于一对一映射，其中的 property 属性表示要关联的属性，
+                                        javaType 表示待关联的实体类的全限定类名
+        -->
+        <association property="user" javaType="com.liuhang.mybatis.entity.User">
+            <id property="id" column="id"/>
+            <result property="username" column="username"/>
+            <result property="sex" column="sex"/>
+            <result property="birthday" column="birthday"/>
+            <result property="address" column="address"/>
+        </association>
+    </resultMap>
+    <!-- 配置查询所有账户，带有用户信息
+         SQL92：内连接，多表之间使用逗号隔开
+    -->
+    <select id="listAllAccounts" resultMap="AccountWithUserMap">
+        SELECT u.*,
+        a.id AS aid, a.uid, a.money
+        from account a, user u
+        WHERE a.uid = u.id
+    </select>
+
+
+<!--     #####################     延时加载（一对一或者多对一）     #######################################-->
+    <!-- 定义可以封装带有User的Account的 resultMap -->
+    <resultMap id="AccountWithUserMapLazy" type="com.liuhang.mybatis.entity.Account">
+        <id property="id" column="id"/>
+        <result property="uid" column="uid"/>
+        <result property="money" column="money"/>
+        <!-- 关联 User 对象 -->
+        <association property="user" javaType="com.liuhang.mybatis.entity.User"
+                     column="uid" select="com.liuhang.mybatis.dao.UserMapper.getUserById"></association>
+    </resultMap>
+    <!-- 配置查询所有账户，延迟加载用户信息 -->
+    <select id="listAllAccountsWithLazyUser" resultMap="AccountWithUserMapLazy">
+        SELECT * FROM account
+    </select>
+</mapper>

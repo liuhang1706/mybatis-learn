@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.liuhang.mybatis.dao.UserMapper">
+    <!-- 配置查询所有用户 -->
+    <select id="listAllUsers" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user
+    </select>
+
+    <!-- 添加用户 -->
+    <insert id="saveUser" parameterType="com.liuhang.mybatis.entity.User">
+        INSERT INTO user(username,birthday,sex,address) VALUES (#{username},#{birthday},#{sex},#{address})
+    </insert>
+
+    <!-- 删除用户 -->
+    <delete id="removeUserById" parameterType="java.lang.Integer">
+        DELETE FROM user WHERE id = #{uid}
+    </delete>
+
+    <!-- 修改用户 -->
+    <update id="updateUser" parameterType="com.liuhang.mybatis.entity.User">
+        UPDATE user SET username = #{username}, birthday = #{birthday}, sex = #{sex}, address = #{address} WHERE id = #{id}
+    </update>
+
+    <!-- 查询单个用户 -->
+    <select id="getUserById" parameterType="java.lang.Integer" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user WHERE id = #{uid}
+    </select>
+
+    <!-- 根据姓名模糊查询多个用户
+            SELECT * FROM user WHERE username LIKE concat('%',#{name},'%');
+            SELECT * FROM user WHERE username LIKE "%"#{name}"%"；
+    -->
+    <select id="listUsersByName" parameterType="java.lang.String" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user WHERE username LIKE #{name}
+    </select>
+
+    <!-- 查询用户总数 -->
+    <select id="countUser" resultType="int">
+        SELECT count(id) FROM user
+    </select>
+
+    <!-- 添加用户，同时获取 id 的返回值 -->
+    <insert id="testSaveUser2" parameterType="com.liuhang.mybatis.entity.User">
+        <!--
+            keyProperty 表示 selectKey 语句结果应该被设置的目标属性（对应实体类）。
+            keyColumn 表示匹配属性的返回结果集中的列名称（对应数据库结果集）。
+            order 可以被设置为 BEFORE 或 AFTER。如果设置为 BEFORE，那么它会首先生成主键，
+                  设置 keyProperty 然后执行插入语句。如果设置为 AFTER，那么先执行插入语句，然后再执行 selectKey 中的语句。
+         -->
+        <selectKey keyProperty="id" keyColumn="id" resultType="int" order="AFTER">
+            SELECT LAST_INSERT_ID()
+        </selectKey>
+        INSERT INTO user(username,birthday,sex,address) VALUES (#{username},#{birthday},#{sex},#{address})
+    </insert>
+
+    <!-- 根据查询条件模糊查询 -->
+    <select id="listUsersByVo" parameterType="com.liuhang.mybatis.entity.QueryVo" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user WHERE username LIKE CONCAT('%',#{user.username},'%')
+    </select>
+
+    <!-- 配置 resultMap ，完成实体类与数据库表的映射 -->
+    <resultMap id="userMap" type="com.liuhang.mybatis.entity.User2">
+        <id property="userId" column="id" />
+        <result property="userName" column="username"/>
+        <result property="userBirthday" column="birthday"/>
+        <result property="userAddress" column="address"/>
+        <result property="userSex" column="sex"/>
+    </resultMap>
+
+    <!-- 配置查询所有用户 -->
+    <select id="listAllUsers2" resultMap="userMap">
+       SELECT * FROM user
+    </select>
+
+    <!-- 根据查询条件进行复合查询 -->
+    <select id="listUsersByCondition" parameterType="com.liuhang.mybatis.entity.User" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user
+        <where>
+            <if test="username != null and username != ''">
+                AND username LIKE CONCAT('%',#{username},'%')
+            </if>
+            <if test="sex != null and sex != ''">
+                AND sex = #{sex}
+            </if>
+            <if test="address != null and address != ''">
+                AND address = #{address}
+            </if>
+            <if test="birthday != null">
+                AND birthday = #{birthday}
+            </if>
+        </where>
+    </select>
+
+    <!-- 根据id集合查询用户
+         <foreach></foreach> 标签用于遍历集合，每个属性的作用如下所示：
+            collection ： 代表要遍历的集合或数组，这个属性是必须的。如果是遍历数组，那么该值只能为 array
+            open ： 代表语句的开始部份
+            close ： 代表语句的结束部份
+            item ： 代表遍历集合时的每个元素，相当于一个临时变量
+            separator ： 代表拼接每个元素之间的分隔符
+         你可以将任何可迭代对象（如 List、Set 等）、Map 对象或者数组对象传递给 foreach 作为集合参数。
+         当使用可迭代对象或者数组时，index 是当前迭代的次数，item 的值是本次迭代获取的元素。当使用 Map 对象（或者 Map.Entry 对象的集合）时，index 是键，item 是值
+    -->
+    <select id="listUsersByIds" parameterType="com.liuhang.mybatis.entity.QueryVo" resultType="com.liuhang.mybatis.entity.User">
+        SELECT * FROM user
+        <where>
+            <if test="ids != null and ids.size > 0">
+                <foreach collection="ids" open="AND id IN (" close=")" item="id" separator=",">
+                    #{id}
+                </foreach>
+            </if>
+        </where>
+    </select>
+
+<!--  ############################    一对多映射       #######################################################-->
+    <!-- 配置 resultMap ，完成实体类与数据库表的映射 -->
+    <resultMap id="UserWithAccountsMap" type="com.liuhang.mybatis.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="sex" column="sex"/>
+        <result property="birthday" column="birthday"/>
+        <result property="address" column="address"/>
+        <!-- 配置user对象中accounts集合的映射
+             <collection ></collection > 用于一对多映射，
+                                         其中的 property 属性表示要关联的集合，ofType 表示集合中的实体类的全限定类名。
+        -->
+        <collection property="accounts" ofType="com.liuhang.mybatis.entity.Account">
+            <id property="id" column="aid"/>
+            <result property="uid" column="uid"/>
+            <result property="money" column="money"/>
+        </collection>
+    </resultMap>
+
+    <!-- 配置查询所有用户，并且带有账户信息 -->
+    <select id="listAllUsersWithAccounts" resultMap="UserWithAccountsMap">
+        SELECT u.*,
+        a.id AS aid, a.uid, a.money
+        FROM user u
+        LEFT OUTER JOIN account a
+        ON u.id = a.uid;
+    </select>
+
+
+<!--    ##############################           多对多映射            ####################################-->
+    <resultMap id="UserWithRolesMap" type="com.liuhang.mybatis.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="sex" column="sex"/>
+        <result property="birthday" column="birthday"/>
+        <result property="address" column="address"/>
+        <!-- 配置user对象中roles集合的映射 -->
+        <collection property="roles" ofType="com.liuhang.mybatis.entity.Role">
+            <id property="roleId" column="rid"/>
+            <result property="roleName" column="role_name"/>
+            <result property="roleDesc" column="role_desc"/>
+        </collection>
+    </resultMap>
+    <!-- 查询所有用户，并且带有角色信息 -->
+    <select id="listUsersWithRoles" resultMap="UserWithRolesMap">
+        SELECT u.*, r.id as rid, r.role_name, r.role_desc FROM user u
+            LEFT OUTER JOIN user_role ur ON u.id = ur.uid
+            LEFT OUTER JOIN role r ON ur.rid = r.id
+    </select>
+
+
+<!--    ##############################           延时加载（一对多映射或者多对多）            ####################################-->
+    <!-- 配置 resultMap ，完成实体类与数据库表的映射 -->
+    <resultMap id="UserWithAccountsMap22" type="com.liuhang.mybatis.entity.User">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="sex" column="sex"/>
+        <result property="birthday" column="birthday"/>
+        <result property="address" column="address"/>
+        <!-- 配置user对象中accounts集合的映射 -->
+        <collection property="accounts" ofType="com.liuhang.mybatis.entity.Account"
+                    column="id" select="com.liuhang.mybatis.dao.AccountMapper.getAccountByUid"></collection>
+    </resultMap>
+    <!-- 配置查询所有用户，延迟加载所有账户信息 -->
+    <select id="listAllUsersWithLazyAccounts" resultMap="UserWithAccountsMap22">
+        SELECT * FROM user
+    </select>
+</mapper>
